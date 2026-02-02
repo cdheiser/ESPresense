@@ -1,5 +1,11 @@
 #include "Logger.h"
 
+#include <Arduino.h>
+#include <USB.h>
+#include <HWCDC.h>
+
+#include <algorithm>
+
 #ifdef ARDUINO
 
 #include <AsyncTCP.h>
@@ -16,7 +22,7 @@
 #undef Serial
 #endif
 
-using SerialType = decltype(::Serial);
+using SerialType = Stream;
 
 namespace {
 
@@ -144,7 +150,12 @@ Logger::Logger(LoggerSerialType& serial) : serial_(serial), serialEnabled_(true)
  * @return Logger& Reference to the singleton Logger associated with the global Serial interface.
  */
 Logger& Logger::instance() {
-    static Logger instance(::Serial);
+#ifdef Serial
+    static Logger instance(Serial);
+#else
+    extern HardwareSerial Serial0;
+    static Logger instance(Serial0);
+#endif
     return instance;
 }
 

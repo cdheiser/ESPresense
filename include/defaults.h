@@ -70,6 +70,11 @@
 #define DEFAULT_COUNT_MS 10000
 #define DEFAULT_COUNT_IDS ""
 
+// Wire1 compatibility
+#if !defined(Wire1)
+#define Wire1 Wire
+#endif
+
 // RX_ADJ_RSSI Defaults
 #ifdef M5STICK
 #define DEFAULT_RX_ADJ_RSSI 0
@@ -80,7 +85,11 @@
 #ifdef ESP32S3
 #define DEFAULT_RX_ADJ_RSSI 20
 #else
+#ifdef ESP32C6
 #define DEFAULT_RX_ADJ_RSSI 0
+#else
+#define DEFAULT_RX_ADJ_RSSI 0
+#endif
 #endif
 #endif
 #endif
@@ -107,11 +116,19 @@
 #define DEFAULT_I2C_BUS_2_SCL -1
 #define DEFAULT_I2C_BUS 1
 #else
+#ifdef ESP32C6
+#define DEFAULT_I2C_BUS_1_SDA 6
+#define DEFAULT_I2C_BUS_1_SCL 7
+#define DEFAULT_I2C_BUS_2_SDA -1
+#define DEFAULT_I2C_BUS_2_SCL -1
+#define DEFAULT_I2C_BUS 1
+#else
 #define DEFAULT_I2C_BUS_1_SDA 21
 #define DEFAULT_I2C_BUS_1_SCL 22
 #define DEFAULT_I2C_BUS_2_SDA -1
 #define DEFAULT_I2C_BUS_2_SCL -1
 #define DEFAULT_I2C_BUS 1
+#endif
 #endif
 #endif
 #endif
@@ -150,6 +167,15 @@
 
 #define DEFAULT_LED1_TYPE 2
 #define DEFAULT_LED1_PIN 2
+#define DEFAULT_LED1_CNTRL Control_Type_Status
+#define DEFAULT_LED1_CNT 1
+
+#define MAX_BRIGHTNESS 20
+
+#elif defined ESP32C6
+
+#define DEFAULT_LED1_TYPE 2
+#define DEFAULT_LED1_PIN 8
 #define DEFAULT_LED1_CNTRL Control_Type_Status
 #define DEFAULT_LED1_CNT 1
 

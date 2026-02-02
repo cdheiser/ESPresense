@@ -1,12 +1,14 @@
+#ifndef EspresenseNetwork_h
+#define EspresenseNetwork_h
+
 #ifdef ESP8266
   #include <ESP8266WiFi.h>
 #else // ESP32
   #include <WiFi.h>
-  #include <ETH.h>
+  #if defined(CONFIG_IDF_TARGET_ESP32)
+    #include <ETH.h>
+  #endif
 #endif
-
-#ifndef Network_h
-#define Network_h
 
 class NetworkClass
 {
@@ -38,6 +40,7 @@ public:
 #define CONFIG_ETH_LILYGO_LITE_RTL  11
 #define CONFIG_ETH_ESP32_POE_A1     12
 
+#if defined(CONFIG_IDF_TARGET_ESP32)
 // For ESP32, the remaining five pins are at least somewhat configurable.
 // eth_address  is in range [0..31], indicates which PHY (MAC?) address should be allocated to the interface
 // eth_power    is an output GPIO pin used to enable/disable the ethernet port (and/or external oscillator)
@@ -184,7 +187,8 @@ const ethernet_settings ethernetBoards[] = {
    ETH_CLOCK_GPIO17_OUT // eth_clk_mode
   }
 };
-
-extern NetworkClass Network;
-
 #endif
+
+extern NetworkClass EspresenseNetwork;
+
+#endif // EspresenseNetwork_h

@@ -6,7 +6,6 @@
 #include <NimBLEBeacon.h>
 #include <NimBLEDevice.h>
 #include <NimBLEEddystoneTLM.h>
-#include <NimBLEEddystoneURL.h>
 
 #include <memory>
 
@@ -61,6 +60,9 @@
 #define ID_TYPE_KNOWN_IRK short(200)
 #define ID_TYPE_KNOWN_MAC short(210)
 #define ID_TYPE_ALIAS short(250)
+
+#define EDDYSTONE_URL_FRAME_TYPE 0x10
+#define EDDYSTONE_TLM_FRAME_TYPE 0x20
 
 class BleFingerprint {
    public:

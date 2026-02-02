@@ -1,5 +1,8 @@
-
 #include <Arduino.h>
+#include "AXP192.h"
+
+#if defined(M5STICK)
+
 #include <Wire.h>
 
 namespace AXP192 {
@@ -49,3 +52,5 @@ void Setup() {
 void Loop() {
 }
 }  // namespace AXP192
+
+#endif

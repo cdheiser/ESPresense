@@ -1,4 +1,4 @@
-#include "Network.h"
+#include "EspresenseNetwork.h"
 #include "../../include/Logger.h"
 
 /**
@@ -140,6 +140,7 @@ bool NetworkClass::initEthernet(int ethernetType)
  */
 bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostname)
 {
+#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
     Log.print(F("Connecting to Ethernet"));
 
     unsigned long starttime = millis();
@@ -158,6 +159,9 @@ bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostn
 
     Log.println(F(" success!"));
     return true;
+#else
+    return false;
+#endif
 }
 
-NetworkClass Network;
+NetworkClass EspresenseNetwork;

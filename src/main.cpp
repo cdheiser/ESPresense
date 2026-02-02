@@ -236,7 +236,7 @@ void setupNetwork() {
     HeadlessWiFiSettings.hostname = "espresense-" + kebabify(room);
 
     bool success = false;
-    if (ethernetType > 0) success = Network.connect(ethernetType, 20, HeadlessWiFiSettings.hostname.c_str());
+    if (ethernetType > 0) success = EspresenseNetwork.connect(ethernetType, 20, HeadlessWiFiSettings.hostname.c_str());
     if (!success && !HeadlessWiFiSettings.connect(true, wifiTimeout))
         ESP.restart();
 
@@ -250,11 +250,11 @@ void setupNetwork() {
 #endif
     Log.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\r\n", WiFi.BSSIDstr().c_str(), WiFi.channel(), WiFi.RSSI());
     Log.print("IP address:   ");
-    Log.println(Network.localIP());
+    Log.println(EspresenseNetwork.localIP());
     Log.print("DNS address:  ");
-    Log.println(Network.dnsIP());
+    Log.println(EspresenseNetwork.dnsIP());
     Log.print("Hostname:     ");
-    Log.println(Network.getHostname());
+    Log.println(EspresenseNetwork.getHostname());
     Log.print("Room:         ");
     Log.println(room);
     Log.printf("Mqtt server:  %s:%d\r\n", mqttHost.c_str(), mqttPort);
@@ -290,7 +290,7 @@ void setupNetwork() {
     Log.print("Count Ids:    ");
     Log.println(BleFingerprintCollection::countIds);
 
-    localIp = Network.localIP().toString();
+    localIp = EspresenseNetwork.localIP().toString();
     id = slugify(room);
     roomsTopic = CHANNEL + String("/rooms/") + id;
     statusTopic = roomsTopic + "/status";
@@ -427,18 +427,18 @@ void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperti
  */
 void reconnect(TimerHandle_t xTimer) {
     Log.printf("%u Reconnect timer\r\n", xPortGetCoreID());
-    if (Network.isConnected() && mqttClient.connected()) return;
+    if (EspresenseNetwork.isConnected() && mqttClient.connected()) return;
 
     if (reconnectTries++ > 50) {
         Log.println("Too many reconnect attempts; Restarting");
         ESP.restart();
     }
 
-    if (!Network.isConnected()) {
+    if (!EspresenseNetwork.isConnected()) {
         Log.printf("%u Reconnecting to Network...\r\n", xPortGetCoreID());
 
         bool success = false;
-        if (ethernetType > 0) success = Network.connect(ethernetType, 2, HeadlessWiFiSettings.hostname.c_str());
+        if (ethernetType > 0) success = EspresenseNetwork.connect(ethernetType, 2, HeadlessWiFiSettings.hostname.c_str());
         if (!success && !HeadlessWiFiSettings.connect(true, 40))
             ESP.restart();
     }
@@ -543,7 +543,7 @@ void scanTask(void *parameter) {
     auto pBLEScan = NimBLEDevice::getScan();
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
-    pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks(), true);
+    pBLEScan->setScanCallbacks(new MyAdvertisedDeviceCallbacks(), true);
     pBLEScan->setActiveScan(false);
     pBLEScan->setDuplicateFilter(false);
     pBLEScan->setMaxResults(0);
