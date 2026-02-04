@@ -236,7 +236,7 @@ void setupNetwork() {
     HeadlessWiFiSettings.hostname = "espresense-" + kebabify(room);
 
     bool success = false;
-    if (ethernetType > 0) success = Network.connect(ethernetType, 20, HeadlessWiFiSettings.hostname.c_str());
+    if (ethernetType > 0) success = EspresenseNetwork.connect(ethernetType, 20, HeadlessWiFiSettings.hostname.c_str());
     if (!success && !HeadlessWiFiSettings.connect(true, wifiTimeout))
         ESP.restart();
 
@@ -250,11 +250,11 @@ void setupNetwork() {
 #endif
     Log.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\r\n", WiFi.BSSIDstr().c_str(), WiFi.channel(), WiFi.RSSI());
     Log.print("IP address:   ");
-    Log.println(Network.localIP());
+    Log.println(EspresenseNetwork.localIP());
     Log.print("DNS address:  ");
-    Log.println(Network.dnsIP());
+    Log.println(EspresenseNetwork.dnsIP());
     Log.print("Hostname:     ");
-    Log.println(Network.getHostname());
+    Log.println(EspresenseNetwork.getHostname());
     Log.print("Room:         ");
     Log.println(room);
     Log.printf("Mqtt server:  %s:%d\r\n", mqttHost.c_str(), mqttPort);
@@ -290,7 +290,7 @@ void setupNetwork() {
     Log.print("Count Ids:    ");
     Log.println(BleFingerprintCollection::countIds);
 
-    localIp = Network.localIP().toString();
+    localIp = EspresenseNetwork.localIP().toString();
     id = slugify(room);
     roomsTopic = CHANNEL + String("/rooms/") + id;
     statusTopic = roomsTopic + "/status";
@@ -427,18 +427,18 @@ void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperti
  */
 void reconnect(TimerHandle_t xTimer) {
     Log.printf("%u Reconnect timer\r\n", xPortGetCoreID());
-    if (Network.isConnected() && mqttClient.connected()) return;
+    if (EspresenseNetwork.isConnected() && mqttClient.connected()) return;
 
     if (reconnectTries++ > 50) {
         Log.println("Too many reconnect attempts; Restarting");
         ESP.restart();
     }
 
-    if (!Network.isConnected()) {
+    if (!EspresenseNetwork.isConnected()) {
         Log.printf("%u Reconnecting to Network...\r\n", xPortGetCoreID());
 
         bool success = false;
-        if (ethernetType > 0) success = Network.connect(ethernetType, 2, HeadlessWiFiSettings.hostname.c_str());
+        if (ethernetType > 0) success = EspresenseNetwork.connect(ethernetType, 2, HeadlessWiFiSettings.hostname.c_str());
         if (!success && !HeadlessWiFiSettings.connect(true, 40))
             ESP.restart();
     }
@@ -528,41 +528,42 @@ void reportLoop() {
     }
 }
 
-class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
-    void onResult(BLEAdvertisedDevice *advertisedDevice) {
-        bleStack = uxTaskGetStackHighWaterMark(nullptr);
-        BleFingerprintCollection::Seen(advertisedDevice);
+class MyAdvertisedDeviceCallbacks : public NimBLEScanCallbacks {
+    void onResult(const NimBLEAdvertisedDevice *advertisedDevice) {
+        BleFingerprintCollection::Seen(const_cast<NimBLEAdvertisedDevice*>(advertisedDevice));
     }
 };
 
+/**
+ * @brief FreeRTOS task that manages the BLE scanning process.
+ *
+ * Configures scan intervals and windows, sets up the scan callback, and then
+ * enters an infinite loop that starts and restarts scanning. If a scan fails
+ * to start, it logs an error and delays before retrying.
+ *
+ * @param parameter Unused task parameter.
+ */
 void scanTask(void *parameter) {
-    NimBLEDevice::init("ESPresense");
-    Enrollment::Setup();
-    NimBLEDevice::setMTU(23);
-
     auto pBLEScan = NimBLEDevice::getScan();
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
-    pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks(), true);
+    pBLEScan->setScanCallbacks(new MyAdvertisedDeviceCallbacks(), true);
     pBLEScan->setActiveScan(false);
     pBLEScan->setDuplicateFilter(false);
     pBLEScan->setMaxResults(0);
-    if (!pBLEScan->start(0, nullptr, false))
-        log_e("Error starting continuous ble scan");
+
+    if (!pBLEScan->start(0, false, false))
+    {
+        Log.println("Error starting scan");
+    }
 
     while (true) {
-        for (auto &f : BleFingerprintCollection::fingerprints)
-            if (f->query())
-                totalFpQueried++;
-
-        Enrollment::Loop();
-
+        delay(1000);
         if (!pBLEScan->isScanning()) {
-            if (!pBLEScan->start(0, nullptr, true))
-                log_e("Error re-starting continuous ble scan");
-            delay(3000);  // If we stopped scanning, don't query for 3 seconds in order for us to catch any missed broadcasts
-        } else {
-            delay(100);
+            if (!pBLEScan->start(0, false, true))
+            {
+                Log.println("Error restarting scan");
+            }
         }
     }
 }

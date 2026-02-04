@@ -70,6 +70,11 @@
 #define DEFAULT_COUNT_MS 10000
 #define DEFAULT_COUNT_IDS ""
 
+// Wire1 compatibility
+#if !defined(Wire1)
+#define Wire1 Wire
+#endif
+
 // RX_ADJ_RSSI Defaults
 #ifdef M5STICK
 #define DEFAULT_RX_ADJ_RSSI 0

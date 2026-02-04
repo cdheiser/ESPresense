@@ -1,5 +1,11 @@
 #include "Logger.h"
 
+#include <Arduino.h>
+#include <USB.h>
+#include <HWCDC.h>
+
+#include <algorithm>
+
 #ifdef ARDUINO
 
 #include <AsyncTCP.h>
@@ -16,7 +22,7 @@
 #undef Serial
 #endif
 
-using SerialType = decltype(::Serial);
+using SerialType = Stream;
 
 namespace {
 
@@ -72,7 +78,7 @@ int LoggerVprintf(const char* format, va_list args) {
     va_end(argsForLength);
 
     // Format and send to TCP client if connected
-    if (required > 0 && tcpEnabled && tcpClient && tcpClient->connected()) {
+    if (required > 0 && tcpEnabled && tcpClient && tcpClient && tcpClient->connected()) {
         std::vector<char> buffer(static_cast<size_t>(required) + 1);
         va_list argsForBuffer;
         va_copy(argsForBuffer, args);
@@ -144,7 +150,12 @@ Logger::Logger(LoggerSerialType& serial) : serial_(serial), serialEnabled_(true)
  * @return Logger& Reference to the singleton Logger associated with the global Serial interface.
  */
 Logger& Logger::instance() {
-    static Logger instance(::Serial);
+#ifdef Serial
+    static Logger instance(Serial);
+#else
+    extern HardwareSerial Serial0;
+    static Logger instance(Serial0);
+#endif
     return instance;
 }
 

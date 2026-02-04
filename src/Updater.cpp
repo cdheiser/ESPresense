@@ -1,8 +1,10 @@
 #include <Arduino.h>
 #include <ArduinoOTA.h>
-#include <SPIFFS.h>
+#include <FSCompat.h>
 #include <WiFi.h>
+#if __has_include(<WiFiClientSecure.h>)
 #include <WiFiClientSecure.h>
+#endif
 #include <esp_ota_ops.h>
 
 #include "HeadlessWiFiSettings.h"
@@ -54,6 +56,7 @@ String getVersionMarker() {
  * calls will not trigger additional update actions.
  */
 void checkForUpdates() {
+#if __has_include(<WiFiClientSecure.h>)
     auto versionMarker = getVersionMarker();
     if (versionMarker.length() > 0) {
         static bool foundNewVersion = false;
@@ -84,6 +87,7 @@ void checkForUpdates() {
             }
         }
     }
+#endif
 }
 
 /**
@@ -135,11 +139,16 @@ void firmwareUpdate() {
     HttpUpdateResult ret;
 
     if (isSecure) {
+#if __has_include(<WiFiClientSecure.h>)
         WiFiClientSecure secureClient;
         secureClient.setHandshakeTimeout(8);
         secureClient.setInsecure();     // Allow self-signed certificates
         secureClient.setTimeout(12);
         ret = httpUpdate.update(secureClient, url);
+#else
+        Log.println("HTTPS updates not supported on this platform!");
+        ret = HTTP_UPDATE_FAILED;
+#endif
     } else {
         WiFiClient insecureClient;
         insecureClient.setTimeout(12);

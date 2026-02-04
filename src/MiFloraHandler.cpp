@@ -15,8 +15,8 @@ std::vector<std::string> addresses;
  * @param doc JSON document to populate with sensor values.
  * @return true if sensor data was successfully read and stored in `doc`, `false` otherwise.
  */
-bool readSensorData(BLERemoteService* floraService, DynamicJsonDocument* doc) {
-    BLERemoteCharacteristic* floraCharacteristic = nullptr;
+bool readSensorData(NimBLERemoteService* floraService, DynamicJsonDocument* doc) {
+    NimBLERemoteCharacteristic* floraCharacteristic = nullptr;
 
     // get the main device data characteristic
     floraCharacteristic = floraService->getCharacteristic(uuid_sensor_data);
@@ -64,8 +64,8 @@ bool readSensorData(BLERemoteService* floraService, DynamicJsonDocument* doc) {
  * @param doc JSON document to populate with the battery value.
  * @return true if the battery value was successfully read and stored, `false` otherwise.
  */
-bool readBatteryData(BLERemoteService* floraService, DynamicJsonDocument* doc) {
-    BLERemoteCharacteristic* floraCharacteristic = nullptr;
+bool readBatteryData(NimBLERemoteService* floraService, DynamicJsonDocument* doc) {
+    NimBLERemoteCharacteristic* floraCharacteristic = nullptr;
 
     floraCharacteristic = floraService->getCharacteristic(uuid_version_battery);
 
@@ -95,8 +95,8 @@ bool readBatteryData(BLERemoteService* floraService, DynamicJsonDocument* doc) {
  * @param floraService Pointer to the connected Mi Flora BLE service to operate on.
  * @return true if the mode command was written and characteristics were cleaned up, `false` if the mode characteristic was not found.
  */
-bool forceFloraServiceDataMode(BLERemoteService* floraService) {  // Setting the mi flora to data reading mode
-    BLERemoteCharacteristic* floraCharacteristic;
+bool forceFloraServiceDataMode(NimBLERemoteService* floraService) {  // Setting the mi flora to data reading mode
+    NimBLERemoteCharacteristic* floraCharacteristic;
 
     // get device mode characteristic, needs to be changed to read data
     // Log.println("- Force device in data mode");
@@ -130,11 +130,11 @@ void fillDeviceData(DynamicJsonDocument* doc, BleFingerprint* f) {
  * Failures during individual read steps are logged but do not stop the overall process.
  *
  * @param doc Pointer to a DynamicJsonDocument to receive device and sensor fields.
- * @param floraService Pointer to the BLERemoteService for the Mi Flora device.
+ * @param floraService Pointer to the NimBLERemoteService for the Mi Flora device.
  * @param f Pointer to the BleFingerprint identifying the device (used to fill id/mac).
  * @return bool `true` when orchestration completes (note: individual read failures are reported via logs). 
  */
-bool getFloraData(DynamicJsonDocument* doc, BLERemoteService* floraService, BleFingerprint* f) {
+bool getFloraData(DynamicJsonDocument* doc, NimBLERemoteService* floraService, BleFingerprint* f) {
     // Force miFlora to data mode
 
     fillDeviceData(doc, f);

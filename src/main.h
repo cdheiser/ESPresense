@@ -4,7 +4,7 @@
 #include <ESPAsyncWebServer.h>
 #include <HTTPClient.h>
 #include <NimBLEDevice.h>
-#include <SPIFFS.h>
+#include <FSCompat.h>
 #include <WiFi.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/timers.h>
@@ -21,7 +21,7 @@
 #include "Motion.h"
 #include "Switch.h"
 #include "Button.h"
-#include "Network.h"
+#include "EspresenseNetwork.h"
 #include "SerialImprov.h"
 #include "Logger.h"
 #include "Updater.h"
