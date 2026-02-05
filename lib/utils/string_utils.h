@@ -3,9 +3,10 @@
 #include <WString.h>
 #include <string>
 #include <cstring>
+#include <inttypes.h>
 
 #define CHIPID (uint32_t)(ESP.getEfuseMac() >> 24)
-#define ESPMAC (Sprintf("%06x", CHIPID))
+#define ESPMAC (Sprintf("%06" PRIx32 "", CHIPID))
 #define Sprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); const String r = s; free(s); r; })
 #define Stdprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); const std::string r = s; free(s); r; })
 
