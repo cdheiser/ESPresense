@@ -9,10 +9,14 @@ bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_
 {
     for (int i = 0; i < 10; i++)
     {
-        if (mqttClient.publish(topic, qos, retain, payload, length, dup, message_id))
+        if (mqttClient.publish(topic, qos, retain, payload, length, dup, message_id)) {
+            // Log.printf("MQTT pub success: %s\r\n", topic);
             return true;
+        }
+        Log.printf("MQTT pub retry %d: %s\r\n", i, topic);
         delay(25);
     }
+    Log.printf("MQTT pub FAILED after 10 tries: %s\r\n", topic);
     return false;
 }
 
