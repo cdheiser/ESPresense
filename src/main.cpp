@@ -528,10 +528,10 @@ void reportLoop() {
     }
 }
 
-class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
-    void onResult(BLEAdvertisedDevice *advertisedDevice) {
+class MyAdvertisedDeviceCallbacks : public NimBLEScanCallbacks {
+    void onResult(const NimBLEAdvertisedDevice *advertisedDevice) {
         bleStack = uxTaskGetStackHighWaterMark(nullptr);
-        BleFingerprintCollection::Seen(advertisedDevice);
+        BleFingerprintCollection::Seen(const_cast<NimBLEAdvertisedDevice*>(advertisedDevice));
     }
 };
 
