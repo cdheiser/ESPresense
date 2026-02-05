@@ -6,11 +6,9 @@ SinglePWM::SinglePWM(uint8_t index, ControlType controlType, bool inverted, int 
 }
 
 void SinglePWM::init() {
-    inited = true;
 #if ESP_ARDUINO_VERSION >= ESP_ARDUINO_VERSION_VAL(3, 0, 0)
     ledcAttach(pin, 5000, 12);
 #else
-    pinMode(pin, OUTPUT);
     ledcSetup(LED::getIndex(), 5000, 12);
     ledcAttachPin(pin, getIndex());
 #endif

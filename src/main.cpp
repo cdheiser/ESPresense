@@ -530,20 +530,16 @@ void reportLoop() {
 
 class MyAdvertisedDeviceCallbacks : public NimBLEScanCallbacks {
     void onResult(const NimBLEAdvertisedDevice *advertisedDevice) {
+        bleStack = uxTaskGetStackHighWaterMark(nullptr);
         BleFingerprintCollection::Seen(const_cast<NimBLEAdvertisedDevice*>(advertisedDevice));
     }
 };
 
-/**
- * @brief FreeRTOS task that manages the BLE scanning process.
- *
- * Configures scan intervals and windows, sets up the scan callback, and then
- * enters an infinite loop that starts and restarts scanning. If a scan fails
- * to start, it logs an error and delays before retrying.
- *
- * @param parameter Unused task parameter.
- */
 void scanTask(void *parameter) {
+    NimBLEDevice::init("ESPresense");
+    Enrollment::Setup();
+    NimBLEDevice::setMTU(23);
+
     auto pBLEScan = NimBLEDevice::getScan();
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
@@ -551,19 +547,22 @@ void scanTask(void *parameter) {
     pBLEScan->setActiveScan(false);
     pBLEScan->setDuplicateFilter(false);
     pBLEScan->setMaxResults(0);
-
-    if (!pBLEScan->start(0, false, false))
-    {
-        Log.println("Error starting scan");
-    }
+    if (!pBLEScan->start(0, nullptr, false))
+        log_e("Error starting continuous ble scan");
 
     while (true) {
-        delay(1000);
+        for (auto &f : BleFingerprintCollection::fingerprints)
+            if (f->query())
+                totalFpQueried++;
+
+        Enrollment::Loop();
+
         if (!pBLEScan->isScanning()) {
-            if (!pBLEScan->start(0, false, true))
-            {
-                Log.println("Error restarting scan");
-            }
+            if (!pBLEScan->start(0, nullptr, true))
+                log_e("Error re-starting continuous ble scan");
+            delay(3000);  // If we stopped scanning, don't query for 3 seconds in order for us to catch any missed broadcasts
+        } else {
+            delay(100);
         }
     }
 }

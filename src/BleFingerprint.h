@@ -66,9 +66,9 @@
 
 class BleFingerprint {
    public:
-    BleFingerprint(NimBLEAdvertisedDevice *advertisedDevice);
+    BleFingerprint(const NimBLEAdvertisedDevice *advertisedDevice);
 
-    bool seen(BLEAdvertisedDevice *advertisedDevice);
+    bool seen(const NimBLEAdvertisedDevice *advertisedDevice);
 
     bool fill(JsonObject *doc);
 
@@ -148,10 +148,10 @@ class BleFingerprint {
 
     static bool shouldHide(const String &s);
     uint8_t calculateTimeSlot(); // Calculate time slot (0-3) based on device ID
-    void fingerprint(NimBLEAdvertisedDevice *advertisedDevice);
-    void fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower);
-    void fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower);
-    void fingerprintManufactureData(NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower);
+    void fingerprint(const NimBLEAdvertisedDevice *advertisedDevice);
+    void fingerprintServiceAdvertisements(const NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower);
+    void fingerprintServiceData(const NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower);
+    void fingerprintManufactureData(const NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower);
 };
 
 #endif

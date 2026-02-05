@@ -68,8 +68,8 @@ void Close(BleFingerprint *f, bool close) {
     }
 }
 
-void Seen(BLEAdvertisedDevice *advertisedDevice) {
-    BLEAdvertisedDevice copy = *advertisedDevice;
+void Seen(const NimBLEAdvertisedDevice *advertisedDevice) {
+    NimBLEAdvertisedDevice copy = *advertisedDevice;
 
     if (onSeen) onSeen(true);
     BleFingerprint *f = GetFingerprint(&copy);
@@ -318,7 +318,7 @@ void CleanupOldFingerprints() {
  * @param advertisedDevice Advertised device used to identify or construct the fingerprint.
  * @return BleFingerprint* Pointer to the existing or newly created fingerprint stored in the collection.
  */
-BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
+BleFingerprint *getFingerprintInternal(const NimBLEAdvertisedDevice *advertisedDevice) {
     auto mac = advertisedDevice->getAddress();
 
     auto it = std::find_if(fingerprints.rbegin(), fingerprints.rend(), [mac](BleFingerprint *f) { return f->getAddress() == mac; });
@@ -339,7 +339,7 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
     return created;
 }
 
-BleFingerprint *GetFingerprint(BLEAdvertisedDevice *advertisedDevice) {
+BleFingerprint *GetFingerprint(const NimBLEAdvertisedDevice *advertisedDevice) {
     if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
         log_e("Couldn't take semaphore!");
     auto f = getFingerprintInternal(advertisedDevice);

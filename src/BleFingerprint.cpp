@@ -13,15 +13,15 @@
 #include "string_utils.h"
 #include "util.h"
 
-class ClientCallbacks : public NimBLEClientCallbacks {
-    bool onConnParamsUpdateRequest(NimBLEClient *pClient, const ble_gap_upd_params *params, NimBLEConnInfo& connInfo) {
+class ClientCallbacks : public BLEClientCallbacks {
+    bool onConnParamsUpdateRequest(NimBLEClient *pClient, const ble_gap_upd_params *params) {
         return true;
     };
 };
 
 static ClientCallbacks clientCB;
 
-BleFingerprint::BleFingerprint(NimBLEAdvertisedDevice *advertisedDevice) {
+BleFingerprint::BleFingerprint(const NimBLEAdvertisedDevice *advertisedDevice) {
     firstSeenMillis = millis();
     address = NimBLEAddress(advertisedDevice->getAddress());
     addressType = advertisedDevice->getAddressType();
@@ -129,7 +129,7 @@ const int BleFingerprint::get1mRssi() const {
     return BleFingerprintCollection::rxRefRssi + DEFAULT_TX;
 }
 
-void BleFingerprint::fingerprint(NimBLEAdvertisedDevice *advertisedDevice) {
+void BleFingerprint::fingerprint(const NimBLEAdvertisedDevice *advertisedDevice) {
     if (advertisedDevice->haveName()) {
         const std::string name = advertisedDevice->getName();
         if (!name.empty()) setId(String("name:") + kebabify(name).c_str(), ID_TYPE_NAME, String(name.c_str()));
@@ -259,7 +259,7 @@ void BleFingerprint::fingerprintAddress() {
  * @param haveTxPower True if a TX power value is present in the advertisement; otherwise false.
  * @param txPower Advertised TX power in dBm (typically a negative value) when `haveTxPower` is true.
  */
-void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower) {
+void BleFingerprint::fingerprintServiceAdvertisements(const NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower) {
     for (auto i = 0; i < serviceAdvCount; i++) {
         auto uuid = advertisedDevice->getServiceUUID(i);
 #ifdef VERBOSE
@@ -330,11 +330,11 @@ void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *ad
  * @param haveTxPower True if the advertisement included TX power; used to adjust RSSI reference candidates.
  * @param txPower The advertised TX power value (in dBm) when haveTxPower is true.
  */
-void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower) {
+void BleFingerprint::fingerprintServiceData(const NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower) {
     asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
     String fingerprint = "";
     for (int i = 0; i < serviceDataCount; i++) {
-        NimBLEUUID uuid = advertisedDevice->getServiceDataUUID(i);
+        BLEUUID uuid = advertisedDevice->getServiceDataUUID(i);
         std::string strServiceData = advertisedDevice->getServiceData(i);
 #ifdef VERBOSE
         Log.printf("Verbose | %s | %-58s%.1fdBm SD: %s/%s\r\n", getMac().c_str(), getId().c_str(), rssi, uuid.toString().c_str(), hexStr(strServiceData).c_str());
@@ -378,11 +378,6 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
             } else if (strServiceData[0] == EDDYSTONE_TLM_FRAME_TYPE) {
                 NimBLEEddystoneTLM oBeacon = NimBLEEddystoneTLM();
                 oBeacon.setData((const uint8_t*)strServiceData.data(), strServiceData.length());
-                temp = oBeacon.getTemp();
-                mv = oBeacon.getVolt();
-#ifdef VERBOSE
-                Log.println(oBeacon.toString().c_str());
-#endif
             } else if (strServiceData[0] == 0x00) {
                 auto serviceData = strServiceData.c_str();
                 int8_t rss0m = *(int8_t *)(serviceData + 1);
@@ -421,7 +416,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
  * @param haveTxPower True if the advertisement included a TX power field; used to adjust RSSI candidates.
  * @param txPower The TX power value from the advertisement (meaningful only when haveTxPower is true).
  */
-void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower) {
+void BleFingerprint::fingerprintManufactureData(const NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower) {
     std::string strManufacturerData = advertisedDevice->getManufacturerData();
 #ifdef VERBOSE
     Log.printf("Verbose | %s | %-58s%.1fdBm MD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, hexStr(strManufacturerData).c_str());
@@ -496,7 +491,7 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
     }
 }
 
-bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
+bool BleFingerprint::seen(const NimBLEAdvertisedDevice *advertisedDevice) {
     lastSeenMillis = millis();
     reported = false;
 

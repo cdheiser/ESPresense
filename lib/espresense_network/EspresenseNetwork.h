@@ -1,3 +1,6 @@
+#ifndef EspresenseNetwork_h
+#define EspresenseNetwork_h
+
 #ifdef ESP8266
   #include <ESP8266WiFi.h>
 #else // ESP32
@@ -7,10 +10,7 @@
   #endif
 #endif
 
-#ifndef EspresenseNetwork_h
-#define EspresenseNetwork_h
-
-class EspresenseNetworkClass
+class NetworkClass
 {
 public:
   IPAddress localIP();
@@ -189,6 +189,6 @@ const ethernet_settings ethernetBoards[] = {
 };
 #endif
 
-extern EspresenseNetworkClass EspresenseNetwork;
+extern NetworkClass EspresenseNetwork;
 
-#endif
+#endif // EspresenseNetwork_h
