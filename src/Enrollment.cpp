@@ -276,19 +276,22 @@ bool Loop() {
     static bool lastEnrolling = true;
     if (enrolling != lastEnrolling) {
         auto pAdvertising = NimBLEDevice::getAdvertising();
+        pAdvertising->stop();
         if (enrolling) {
-            pAdvertising->reset();
+            NimBLEAdvertisementData advData;
+            advData.setFlags(BLE_HS_ADV_F_BREDR_UNSUP | BLE_HS_ADV_F_DISC_GEN);
+            advData.setCompleteServices(heartRate->getUUID());
+            advData.setName("ESPresense");
+            pAdvertising->setAdvertisementData(advData);
             pAdvertising->enableScanResponse(true);
-            pAdvertising->setConnectableMode(BLE_GAP_CONN_MODE_UND);
-            pAdvertising->addServiceUUID(heartRate->getUUID());
-            pAdvertising->start();
+            if (!pAdvertising->start())
+                Log.println("Error starting HRM advertising");
             Log.printf("%u Advert | HRM\r\n", xPortGetCoreID());
         } else {
-            pAdvertising->reset();
-            pAdvertising->enableScanResponse(false);
-            pAdvertising->setConnectableMode(BLE_GAP_CONN_MODE_NON);
             pAdvertising->setAdvertisementData(*oAdvertisementData);
-            pAdvertising->start();
+            pAdvertising->enableScanResponse(false);
+            if (!pAdvertising->start())
+                Log.println("Error starting iBeacon advertising");
             Log.printf("%u Advert | iBeacon\r\n", xPortGetCoreID());
         }
         lastEnrolling = enrolling;
