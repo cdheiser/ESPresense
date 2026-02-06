@@ -302,7 +302,6 @@ void setupNetwork() {
 }
 
 void onMqttConnect(bool sessionPresent) {
-    Log.println("Connected to MQTT broker");
     xTimerStop(reconnectTimer, 0);
     mqttClient.subscribe("espresense/rooms/*/+/set", 1);
     mqttClient.subscribe(setTopic.c_str(), 1);
@@ -474,7 +473,6 @@ bool reportDevice(BleFingerprint *f) {
         return false;
 
     String const devicesTopic = Sprintf(CHANNEL "/devices/%s/%s", f->getId().c_str(), id.c_str());
-    Log.printf("Publishing report for %s to %s\r\n", f->getId().c_str(), devicesTopic.c_str());
     if (pub(devicesTopic.c_str(), 0, false, doc))
         return true;
 
@@ -493,11 +491,6 @@ void reportSetup() {
 
 void reportLoop() {
     if (!mqttClient.connected()) {
-        static unsigned long lastNotify = 0;
-        if (millis() - lastNotify > 5000) {
-            Log.println("reportLoop: MQTT not connected, skipping reports");
-            lastNotify = millis();
-        }
         return;
     }
 
