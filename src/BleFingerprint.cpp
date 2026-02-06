@@ -228,6 +228,13 @@ bool ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk) {
             Log.printf("IRK RESOLVED! Permutation: %d, RPA: %02x%02x%02x\r\n", i, rpa[5], rpa[4], rpa[3]);
             return true;
         }
+        
+        // Exhaustive debug for the phone's IRK
+        if (memcmp(irk, "\x96\x28\x9c\x1b\xb2\xf4\x6a\x9c\xe7\x5c\xbb\xf6\x5c\x20\x99\x62", 16) == 0) {
+             Log.printf("Phone Perm %d | PT: %s | Cipher: %s | RPA: %02x%02x%02x%02x%02x%02x\r\n", 
+                        i, hexStr(ecb.plain_text, 16).c_str(), hexStr(ecb.cipher_text, 16).c_str(),
+                        rpa[5], rpa[4], rpa[3], rpa[2], rpa[1], rpa[0]);
+        }
     }
     return false;
 }
