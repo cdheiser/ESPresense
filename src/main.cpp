@@ -474,8 +474,8 @@ bool reportDevice(BleFingerprint *f) {
         return false;
 
     String const devicesTopic = Sprintf(CHANNEL "/devices/%s/%s", f->getId().c_str(), id.c_str());
-    Log.printf("Publishing report for %s to %s\r\n", f->getId().c_str(), devicesTopic.c_str());
-    if (pub(devicesTopic.c_str(), 0, false, doc))
+    Log.printf("Publishing report for %s to %s and %s\r\n", f->getId().c_str(), devicesTopic.c_str(), roomsTopic.c_str());
+    if (pub(devicesTopic.c_str(), 0, false, doc) && pub(roomsTopic.c_str(), 0, false, doc))
         return true;
 
     reportFailed++;
