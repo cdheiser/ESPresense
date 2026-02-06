@@ -227,8 +227,9 @@ bool ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk) {
         
         // If it's the very first (standard) attempt, log the result for manual verification
         if (i == 0) { 
-             Log.printf("Debug i=0 | Key: %s | PT: %s | Cipher: %s\r\n", 
-                        hexStr(ecb.key, 16).c_str(), hexStr(ecb.plain_text, 16).c_str(), hexStr(ecb.cipher_text, 16).c_str());
+             Log.printf("Debug i=0 | Key: %s | PT: %s | Cipher: %s | RPA: %02x%02x%02x%02x%02x%02x\r\n", 
+                        hexStr(ecb.key, 16).c_str(), hexStr(ecb.plain_text, 16).c_str(), hexStr(ecb.cipher_text, 16).c_str(),
+                        rpa[5], rpa[4], rpa[3], rpa[2], rpa[1], rpa[0]);
         }
     }
     return false;
