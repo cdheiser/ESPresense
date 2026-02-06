@@ -182,28 +182,55 @@ struct encryption_block {
  * @return true if the RPA matches the value derived from the IRK, false otherwise.
  */
 bool ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk) {
-    struct encryption_block ecb;
+    struct alignas(4) encryption_block {
+        uint8_t key[16];
+        uint8_t plain_text[16];
+        uint8_t cipher_text[16];
+    } ecb;
 
-    memset(&ecb, 0, sizeof(ecb));
-    memcpy(ecb.key, irk, 16);
+    // Try multiple permutations to find the correct one for this architecture
+    for (int i = 0; i < 4; i++) {
+        memset(&ecb, 0, sizeof(ecb));
+        
+        // Key permutation
+        if (i & 1) { // Reversed Key
+            for (int j = 0; j < 16; j++) ecb.key[j] = irk[15 - j];
+        } else { // Normal Key
+            memcpy(ecb.key, irk, 16);
+        }
 
-    ecb.plain_text[15] = rpa[3];
-    ecb.plain_text[14] = rpa[4];
-    ecb.plain_text[13] = rpa[5];
+        // Plaintext/Prand permutation
+        if (i & 2) { // Reversed Prand bytes in PT
+            ecb.plain_text[15] = rpa[5];
+            ecb.plain_text[14] = rpa[4];
+            ecb.plain_text[13] = rpa[3];
+        } else { // Normal Prand bytes in PT
+            ecb.plain_text[15] = rpa[3];
+            ecb.plain_text[14] = rpa[4];
+            ecb.plain_text[13] = rpa[5];
+        }
 
-    bt_encrypt_be(ecb.key, ecb.plain_text, ecb.cipher_text);
+        int err = bt_encrypt_be(ecb.key, ecb.plain_text, ecb.cipher_text);
+        if (err != 0) {
+            Log.printf("AES Err: %d\r\n", err);
+            continue;
+        }
 
-    bool success = (ecb.cipher_text[15] == rpa[0] && ecb.cipher_text[14] == rpa[1] && ecb.cipher_text[13] == rpa[2]);
-    
-    if (!success) {
-        Log.printf("IRK Resolution Fail | RPA: %02x%02x%02x%02x%02x%02x | Hash: %02x%02x%02x | Cipher LSBs: %02x%02x%02x | Key: %s\r\n", 
-                   rpa[5], rpa[4], rpa[3], rpa[2], rpa[1], rpa[0],
-                   rpa[2], rpa[1], rpa[0],
-                   ecb.cipher_text[13], ecb.cipher_text[14], ecb.cipher_text[15],
-                   hexStr(ecb.key, 16).c_str());
+        // Check for match (also try reversed hash check?)
+        bool match = (ecb.cipher_text[15] == rpa[0] && ecb.cipher_text[14] == rpa[1] && ecb.cipher_text[13] == rpa[2]);
+        if (!match) {
+            // Also try reversed hash check just in case
+            match = (ecb.cipher_text[15] == rpa[2] && ecb.cipher_text[14] == rpa[1] && ecb.cipher_text[13] == rpa[0]);
+            if (match) Log.printf("IRK Match found with Reversed Hash! (Permutation %d)\r\n", i);
+        }
+
+        if (match) {
+            if (i > 0) Log.printf("IRK RESOLVED using permutation %d for %02x%02x%02x\r\n", i, rpa[5], rpa[4], rpa[3]);
+            return true;
+        }
     }
 
-    return success;
+    return false;
 }
 
 void BleFingerprint::fingerprintAddress() {
