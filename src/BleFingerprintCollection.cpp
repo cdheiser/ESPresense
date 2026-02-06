@@ -171,6 +171,7 @@ bool Config(String &id, String &json) {
             auto *irk = new uint8_t[16];
             if (!hextostr(irk_hex, irk, 16))
                 return false;
+            Log.printf("Adding IRK to collection: %s\r\n", id.c_str());
             irks.push_back(irk);
         }
     }

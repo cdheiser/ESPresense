@@ -228,7 +228,11 @@ void BleFingerprint::fingerprintAddress() {
                     setId(mac, ID_TYPE_RAND_STATIC_MAC);
                 else {
                     auto irks = BleFingerprintCollection::irks;
-                    auto it = std::find_if(irks.begin(), irks.end(), [&](uint8_t *irk) { return ble_ll_resolv_rpa(naddress, irk); });
+                    auto it = std::find_if(irks.begin(), irks.end(), [&](uint8_t *irk) {
+                        bool resolved = ble_ll_resolv_rpa(naddress, irk);
+                        if (resolved) Log.printf("IRK RESOLVED for %s\r\n", mac.c_str());
+                        return resolved;
+                    });
                     if (it != irks.end()) {
                         auto irk_hex = hexStr(*it, 16);
                         setId(String("irk:") + irk_hex.c_str(), ID_TYPE_KNOWN_IRK);
