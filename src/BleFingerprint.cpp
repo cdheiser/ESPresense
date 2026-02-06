@@ -188,49 +188,19 @@ bool ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk) {
         uint8_t cipher_text[16];
     } ecb;
 
-    // In NimBLE 2.x, rpa[0] is often the MSB.
-    // BLE Spec: ah(k, prand) = e(k, 0...0 || prand) mod 2^24
-    // RPA = [prand (24 bits) | hash (24 bits)] (total 48 bits)
-    
-    for (int i = 0; i < 2; i++) {
-        memset(&ecb, 0, sizeof(ecb));
-        memcpy(ecb.key, irk, 16);
+    memset(&ecb, 0, sizeof(ecb));
+    memcpy(ecb.key, irk, 16);
 
-        // Try rpa[0..2] as prand (i=0) and rpa[3..5] as prand (i=1)
-        const uint8_t* prand = (i == 0) ? &rpa[0] : &rpa[3];
-        const uint8_t* hash  = (i == 0) ? &rpa[3] : &rpa[0];
+    // On NimBLE 2.x (RISC-V), rpa[3..5] is the prand and rpa[0..2] is the hash.
+    // The prand is placed at the end of the Big-Endian plain text block.
+    ecb.plain_text[15] = rpa[5];
+    ecb.plain_text[14] = rpa[4];
+    ecb.plain_text[13] = rpa[3];
 
-        // Standard BLE: prand bytes are placed at the end of the 128-bit block
-        ecb.plain_text[15] = prand[2];
-        ecb.plain_text[14] = prand[1];
-        ecb.plain_text[13] = prand[0];
+    if (bt_encrypt_be(ecb.key, ecb.plain_text, ecb.cipher_text) != 0) return false;
 
-        if (bt_encrypt_be(ecb.key, ecb.plain_text, ecb.cipher_text) != 0) continue;
-
-        // Check if cipher LSBs match the hash bytes
-        if (ecb.cipher_text[15] == hash[2] && ecb.cipher_text[14] == hash[1] && ecb.cipher_text[13] == hash[0]) {
-            Log.printf("IRK RESOLVED! Mode: %s, RPA: %02x%02x%02x\r\n", (i==0)?"MSB-First":"LSB-First", rpa[0], rpa[1], rpa[2]);
-            return true;
-        }
-
-        // Try reversed order for PT and Hash just in case
-        ecb.plain_text[15] = prand[0];
-        ecb.plain_text[14] = prand[1];
-        ecb.plain_text[13] = prand[2];
-        bt_encrypt_be(ecb.key, ecb.plain_text, ecb.cipher_text);
-        if (ecb.cipher_text[15] == hash[0] && ecb.cipher_text[14] == hash[1] && ecb.cipher_text[13] == hash[2]) {
-            Log.printf("IRK RESOLVED! Mode: %s (Alt), RPA: %02x%02x%02x\r\n", (i==0)?"MSB-First":"LSB-First", rpa[0], rpa[1], rpa[2]);
-            return true;
-        }
-        
-        if (memcmp(irk, "\x96\x28\x9c\x1b\xb2\xf4\x6a\x9c\xe7\x5c\xbb\xf6\x5c\x20\x99\x62", 16) == 0) {
-             Log.printf("Phone Resolution Fail %d | PR: %02x%02x%02x | HA: %02x%02x%02x | Cipher: %s\r\n", 
-                        i, prand[0], prand[1], prand[2], hash[0], hash[1], hash[2],
-                        hexStr(ecb.cipher_text, 16).c_str());
-        }
-    }
-
-    return false;
+    // The hash matches the MSBs of the Big-Endian cipher output.
+    return (ecb.cipher_text[0] == rpa[0] && ecb.cipher_text[1] == rpa[1] && ecb.cipher_text[2] == rpa[2]);
 }
 
 void BleFingerprint::fingerprintAddress() {
