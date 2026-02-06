@@ -184,19 +184,8 @@ struct encryption_block {
 bool ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk) {
     struct encryption_block ecb;
 
-    auto irk32 = (const uint32_t *)irk;
-    auto key32 = (uint32_t *)&ecb.key[0];
-    auto pt32 = (uint32_t *)&ecb.plain_text[0];
-
-    key32[0] = irk32[0];
-    key32[1] = irk32[1];
-    key32[2] = irk32[2];
-    key32[3] = irk32[3];
-
-    pt32[0] = 0;
-    pt32[1] = 0;
-    pt32[2] = 0;
-    pt32[3] = 0;
+    memset(&ecb, 0, sizeof(ecb));
+    memcpy(ecb.key, irk, 16);
 
     ecb.plain_text[15] = rpa[3];
     ecb.plain_text[14] = rpa[4];
@@ -204,11 +193,17 @@ bool ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk) {
 
     bt_encrypt_be(ecb.key, ecb.plain_text, ecb.cipher_text);
 
-    if (ecb.cipher_text[15] != rpa[0] || ecb.cipher_text[14] != rpa[1] || ecb.cipher_text[13] != rpa[2]) return false;
+    bool success = (ecb.cipher_text[15] == rpa[0] && ecb.cipher_text[14] == rpa[1] && ecb.cipher_text[13] == rpa[2]);
+    
+    if (!success) {
+        Log.printf("IRK Resolution Fail | RPA: %02x%02x%02x%02x%02x%02x | Hash: %02x%02x%02x | Cipher LSBs: %02x%02x%02x | Key: %s\r\n", 
+                   rpa[5], rpa[4], rpa[3], rpa[2], rpa[1], rpa[0],
+                   rpa[2], rpa[1], rpa[0],
+                   ecb.cipher_text[13], ecb.cipher_text[14], ecb.cipher_text[15],
+                   hexStr(ecb.key, 16).c_str());
+    }
 
-    // Log.printf("RPA resolved %d %02x%02x%02x %02x%02x%02x\r\n", err, rpa[0], rpa[1], rpa[2], ecb.cipher_text[15], ecb.cipher_text[14], ecb.cipher_text[13]);
-
-    return true;
+    return success;
 }
 
 void BleFingerprint::fingerprintAddress() {
