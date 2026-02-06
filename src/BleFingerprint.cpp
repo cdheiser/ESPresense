@@ -188,54 +188,48 @@ bool ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk) {
         uint8_t cipher_text[16];
     } ecb;
 
-    // Try 16 permutations to exhaustively find the correct format
-    for (int i = 0; i < 16; i++) {
+    // In NimBLE 2.x, rpa[0] is often the MSB.
+    // BLE Spec: ah(k, prand) = e(k, 0...0 || prand) mod 2^24
+    // RPA = [prand (24 bits) | hash (24 bits)] (total 48 bits)
+    
+    for (int i = 0; i < 2; i++) {
         memset(&ecb, 0, sizeof(ecb));
-        
-        // 1. Key Order (Bit 0)
-        if (i & 1) { // Reversed Key
-            for (int j = 0; j < 16; j++) ecb.key[j] = irk[15 - j];
-        } else { // Normal Key
-            memcpy(ecb.key, irk, 16);
-        }
+        memcpy(ecb.key, irk, 16);
 
-        // 2. Prand Position (Bit 2) and Prand Order (Bit 1)
-        uint8_t p[3];
-        if (i & 2) { // Reversed Prand
-            p[0] = rpa[5]; p[1] = rpa[4]; p[2] = rpa[3];
-        } else { // Normal Prand
-            p[0] = rpa[3]; p[1] = rpa[4]; p[2] = rpa[5];
-        }
+        // Try rpa[0..2] as prand (i=0) and rpa[3..5] as prand (i=1)
+        const uint8_t* prand = (i == 0) ? &rpa[0] : &rpa[3];
+        const uint8_t* hash  = (i == 0) ? &rpa[3] : &rpa[0];
 
-        if (i & 4) { // Prand at START (Indices 0,1,2)
-            memcpy(ecb.plain_text, p, 3);
-        } else { // Prand at END (Indices 13,14,15)
-            memcpy(&ecb.plain_text[13], p, 3);
-        }
+        // Standard BLE: prand bytes are placed at the end of the 128-bit block
+        ecb.plain_text[15] = prand[2];
+        ecb.plain_text[14] = prand[1];
+        ecb.plain_text[13] = prand[0];
 
         if (bt_encrypt_be(ecb.key, ecb.plain_text, ecb.cipher_text) != 0) continue;
 
-        // 3. Match Logic (Bit 3): Check both ends of cipher against hash
-        // RPA: [hash0, hash1, hash2, prand0, prand1, prand2] (rpa[0..5])
-        bool match = false;
-        if (i & 8) { // Check LSBs of cipher (Indices 13,14,15)
-            match = (ecb.cipher_text[15] == rpa[0] && ecb.cipher_text[14] == rpa[1] && ecb.cipher_text[13] == rpa[2]);
-        } else { // Check MSBs of cipher (Indices 0,1,2)
-            match = (ecb.cipher_text[0] == rpa[0] && ecb.cipher_text[1] == rpa[1] && ecb.cipher_text[2] == rpa[2]);
+        // Check if cipher LSBs match the hash bytes
+        if (ecb.cipher_text[15] == hash[2] && ecb.cipher_text[14] == hash[1] && ecb.cipher_text[13] == hash[0]) {
+            Log.printf("IRK RESOLVED! Mode: %s, RPA: %02x%02x%02x\r\n", (i==0)?"MSB-First":"LSB-First", rpa[0], rpa[1], rpa[2]);
+            return true;
         }
 
-        if (match) {
-            Log.printf("IRK RESOLVED! Permutation: %d, RPA: %02x%02x%02x\r\n", i, rpa[5], rpa[4], rpa[3]);
+        // Try reversed order for PT and Hash just in case
+        ecb.plain_text[15] = prand[0];
+        ecb.plain_text[14] = prand[1];
+        ecb.plain_text[13] = prand[2];
+        bt_encrypt_be(ecb.key, ecb.plain_text, ecb.cipher_text);
+        if (ecb.cipher_text[15] == hash[0] && ecb.cipher_text[14] == hash[1] && ecb.cipher_text[13] == hash[2]) {
+            Log.printf("IRK RESOLVED! Mode: %s (Alt), RPA: %02x%02x%02x\r\n", (i==0)?"MSB-First":"LSB-First", rpa[0], rpa[1], rpa[2]);
             return true;
         }
         
-        // Exhaustive debug for the phone's IRK
         if (memcmp(irk, "\x96\x28\x9c\x1b\xb2\xf4\x6a\x9c\xe7\x5c\xbb\xf6\x5c\x20\x99\x62", 16) == 0) {
-             Log.printf("Phone Perm %d | PT: %s | Cipher: %s | RPA: %02x%02x%02x%02x%02x%02x\r\n", 
-                        i, hexStr(ecb.plain_text, 16).c_str(), hexStr(ecb.cipher_text, 16).c_str(),
-                        rpa[5], rpa[4], rpa[3], rpa[2], rpa[1], rpa[0]);
+             Log.printf("Phone Resolution Fail %d | PR: %02x%02x%02x | HA: %02x%02x%02x | Cipher: %s\r\n", 
+                        i, prand[0], prand[1], prand[2], hash[0], hash[1], hash[2],
+                        hexStr(ecb.cipher_text, 16).c_str());
         }
     }
+
     return false;
 }
 
