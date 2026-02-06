@@ -350,7 +350,7 @@ void onMqttMessage(const char *topic, const char *payload) {
         auto idPos = top.lastIndexOf("/", configPos - 1);
         if (idPos < 0) goto skip;
         auto id = top.substring(idPos + 1, configPos);
-        Log.printf("%d Config | %s to %s\r\n", xPortGetCoreID(), id.c_str(), pay.c_str());
+        Log.printf("MQTT Config received | topic: %s, id: %s\r\n", topic, id.c_str());
         BleFingerprintCollection::Config(id, pay);
     } else if (setPos > 1) {
         auto commandPos = top.lastIndexOf("/", setPos - 1);

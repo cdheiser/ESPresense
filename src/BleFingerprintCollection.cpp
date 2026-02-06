@@ -144,6 +144,7 @@ bool removeConfig(const String &id) {
 }
 
 bool Config(String &id, String &json) {
+    Log.printf("BleFingerprintCollection::Config | id: %s, json: %s\r\n", id.c_str(), json.c_str());
     if (json.isEmpty()) {
         return removeConfig(id);
     }
