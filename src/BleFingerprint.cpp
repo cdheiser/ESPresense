@@ -188,48 +188,45 @@ bool ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk) {
         uint8_t cipher_text[16];
     } ecb;
 
-    // Try 8 permutations to cover all common BLE stack implementation quirks
-    for (int i = 0; i < 8; i++) {
+    // Try 16 permutations to exhaustively find the correct format
+    for (int i = 0; i < 16; i++) {
         memset(&ecb, 0, sizeof(ecb));
         
-        // Key: Normal (0,2,4,6) or Reversed (1,3,5,7)
-        if (i & 1) {
+        // 1. Key Order (Bit 0)
+        if (i & 1) { // Reversed Key
             for (int j = 0; j < 16; j++) ecb.key[j] = irk[15 - j];
-        } else {
+        } else { // Normal Key
             memcpy(ecb.key, irk, 16);
         }
 
-        // Prand Position & Order
-        if (i < 4) { // Prand at the END (standard)
-            if (i & 2) { // Reversed bytes
-                ecb.plain_text[15] = rpa[5]; ecb.plain_text[14] = rpa[4]; ecb.plain_text[13] = rpa[3];
-            } else { // Normal bytes
-                ecb.plain_text[15] = rpa[3]; ecb.plain_text[14] = rpa[4]; ecb.plain_text[13] = rpa[5];
-            }
-        } else { // Prand at the START
-            if (i & 2) { // Reversed bytes
-                ecb.plain_text[0] = rpa[5]; ecb.plain_text[1] = rpa[4]; ecb.plain_text[2] = rpa[3];
-            } else { // Normal bytes
-                ecb.plain_text[0] = rpa[3]; ecb.plain_text[1] = rpa[4]; ecb.plain_text[2] = rpa[5];
-            }
+        // 2. Prand Position (Bit 2) and Prand Order (Bit 1)
+        uint8_t p[3];
+        if (i & 2) { // Reversed Prand
+            p[0] = rpa[5]; p[1] = rpa[4]; p[2] = rpa[3];
+        } else { // Normal Prand
+            p[0] = rpa[3]; p[1] = rpa[4]; p[2] = rpa[5];
+        }
+
+        if (i & 4) { // Prand at START (Indices 0,1,2)
+            memcpy(ecb.plain_text, p, 3);
+        } else { // Prand at END (Indices 13,14,15)
+            memcpy(&ecb.plain_text[13], p, 3);
         }
 
         if (bt_encrypt_be(ecb.key, ecb.plain_text, ecb.cipher_text) != 0) continue;
 
-        // Check match at BOTH ends of the cipher result
-        bool match = (ecb.cipher_text[15] == rpa[0] && ecb.cipher_text[14] == rpa[1] && ecb.cipher_text[13] == rpa[2]) ||
-                     (ecb.cipher_text[0] == rpa[0] && ecb.cipher_text[1] == rpa[1] && ecb.cipher_text[2] == rpa[2]);
+        // 3. Match Logic (Bit 3): Check both ends of cipher against hash
+        // RPA: [hash0, hash1, hash2, prand0, prand1, prand2] (rpa[0..5])
+        bool match = false;
+        if (i & 8) { // Check LSBs of cipher (Indices 13,14,15)
+            match = (ecb.cipher_text[15] == rpa[0] && ecb.cipher_text[14] == rpa[1] && ecb.cipher_text[13] == rpa[2]);
+        } else { // Check MSBs of cipher (Indices 0,1,2)
+            match = (ecb.cipher_text[0] == rpa[0] && ecb.cipher_text[1] == rpa[1] && ecb.cipher_text[2] == rpa[2]);
+        }
 
         if (match) {
             Log.printf("IRK RESOLVED! Permutation: %d, RPA: %02x%02x%02x\r\n", i, rpa[5], rpa[4], rpa[3]);
             return true;
-        }
-        
-        // If it's the very first (standard) attempt, log the result for manual verification
-        if (i == 0) { 
-             Log.printf("Debug i=0 | Key: %s | PT: %s | Cipher: %s | RPA: %02x%02x%02x%02x%02x%02x\r\n", 
-                        hexStr(ecb.key, 16).c_str(), hexStr(ecb.plain_text, 16).c_str(), hexStr(ecb.cipher_text, 16).c_str(),
-                        rpa[5], rpa[4], rpa[3], rpa[2], rpa[1], rpa[0]);
         }
     }
     return false;
