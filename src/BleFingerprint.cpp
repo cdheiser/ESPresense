@@ -188,48 +188,49 @@ bool ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk) {
         uint8_t cipher_text[16];
     } ecb;
 
-    // Try multiple permutations to find the correct one for this architecture
-    for (int i = 0; i < 4; i++) {
+    // Try 8 permutations to cover all common BLE stack implementation quirks
+    for (int i = 0; i < 8; i++) {
         memset(&ecb, 0, sizeof(ecb));
         
-        // Key permutation
-        if (i & 1) { // Reversed Key
+        // Key: Normal (0,2,4,6) or Reversed (1,3,5,7)
+        if (i & 1) {
             for (int j = 0; j < 16; j++) ecb.key[j] = irk[15 - j];
-        } else { // Normal Key
+        } else {
             memcpy(ecb.key, irk, 16);
         }
 
-        // Plaintext/Prand permutation
-        if (i & 2) { // Reversed Prand bytes in PT
-            ecb.plain_text[15] = rpa[5];
-            ecb.plain_text[14] = rpa[4];
-            ecb.plain_text[13] = rpa[3];
-        } else { // Normal Prand bytes in PT
-            ecb.plain_text[15] = rpa[3];
-            ecb.plain_text[14] = rpa[4];
-            ecb.plain_text[13] = rpa[5];
+        // Prand Position & Order
+        if (i < 4) { // Prand at the END (standard)
+            if (i & 2) { // Reversed bytes
+                ecb.plain_text[15] = rpa[5]; ecb.plain_text[14] = rpa[4]; ecb.plain_text[13] = rpa[3];
+            } else { // Normal bytes
+                ecb.plain_text[15] = rpa[3]; ecb.plain_text[14] = rpa[4]; ecb.plain_text[13] = rpa[5];
+            }
+        } else { // Prand at the START
+            if (i & 2) { // Reversed bytes
+                ecb.plain_text[0] = rpa[5]; ecb.plain_text[1] = rpa[4]; ecb.plain_text[2] = rpa[3];
+            } else { // Normal bytes
+                ecb.plain_text[0] = rpa[3]; ecb.plain_text[1] = rpa[4]; ecb.plain_text[2] = rpa[5];
+            }
         }
 
-        int err = bt_encrypt_be(ecb.key, ecb.plain_text, ecb.cipher_text);
-        if (err != 0) {
-            Log.printf("AES Err: %d\r\n", err);
-            continue;
-        }
+        if (bt_encrypt_be(ecb.key, ecb.plain_text, ecb.cipher_text) != 0) continue;
 
-        // Check for match (also try reversed hash check?)
-        bool match = (ecb.cipher_text[15] == rpa[0] && ecb.cipher_text[14] == rpa[1] && ecb.cipher_text[13] == rpa[2]);
-        if (!match) {
-            // Also try reversed hash check just in case
-            match = (ecb.cipher_text[15] == rpa[2] && ecb.cipher_text[14] == rpa[1] && ecb.cipher_text[13] == rpa[0]);
-            if (match) Log.printf("IRK Match found with Reversed Hash! (Permutation %d)\r\n", i);
-        }
+        // Check match at BOTH ends of the cipher result
+        bool match = (ecb.cipher_text[15] == rpa[0] && ecb.cipher_text[14] == rpa[1] && ecb.cipher_text[13] == rpa[2]) ||
+                     (ecb.cipher_text[0] == rpa[0] && ecb.cipher_text[1] == rpa[1] && ecb.cipher_text[2] == rpa[2]);
 
         if (match) {
-            if (i > 0) Log.printf("IRK RESOLVED using permutation %d for %02x%02x%02x\r\n", i, rpa[5], rpa[4], rpa[3]);
+            Log.printf("IRK RESOLVED! Permutation: %d, RPA: %02x%02x%02x\r\n", i, rpa[5], rpa[4], rpa[3]);
             return true;
         }
+        
+        // If it's the very first (standard) attempt, log the result for manual verification
+        if (i == 0) { 
+             Log.printf("Debug i=0 | Key: %s | PT: %s | Cipher: %s\r\n", 
+                        hexStr(ecb.key, 16).c_str(), hexStr(ecb.plain_text, 16).c_str(), hexStr(ecb.cipher_text, 16).c_str());
+        }
     }
-
     return false;
 }
 
@@ -246,20 +247,20 @@ void BleFingerprint::fingerprintAddress() {
             case BLE_ADDR_RANDOM:
             case BLE_ADDR_RANDOM_ID: {
                 const auto *naddress = address.getVal();
-                if ((naddress[5] & 0xc0) == 0xc0)
-                    setId(mac, ID_TYPE_RAND_STATIC_MAC);
-                else {
+                if ((naddress[5] & 0xc0) == 0x40) { // Resolvable Private Address
                     auto irks = BleFingerprintCollection::irks;
                     auto it = std::find_if(irks.begin(), irks.end(), [&](uint8_t *irk) {
-                        bool resolved = ble_ll_resolv_rpa(naddress, irk);
-                        if (resolved) Log.printf("IRK RESOLVED for %s\r\n", mac.c_str());
-                        return resolved;
+                        return ble_ll_resolv_rpa(naddress, irk);
                     });
                     if (it != irks.end()) {
                         auto irk_hex = hexStr(*it, 16);
                         setId(String("irk:") + irk_hex.c_str(), ID_TYPE_KNOWN_IRK);
                         break;
                     }
+                    setId(mac, ID_TYPE_RAND_MAC);
+                } else if ((naddress[5] & 0xc0) == 0xc0) { // Static Random Address
+                    setId(mac, ID_TYPE_RAND_STATIC_MAC);
+                } else {
                     setId(mac, ID_TYPE_RAND_MAC);
                 }
                 break;
